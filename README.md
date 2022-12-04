@@ -1,7 +1,7 @@
 # Gilbert-s_player
 music player for discord, one instantion per guild
 
-install ffmpeg
+install ffmpeg and ytdlp
 
 create venv and install requirements
 
