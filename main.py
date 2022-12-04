@@ -14,5 +14,7 @@ async def on_ready():
     client.voice = None
     for file in os.listdir('music'):
         os.remove("music/"+file)
+    for file in os.listdir('new'):
+        os.remove("new/"+file)
     
 client.run(os.getenv('TOKEN'))

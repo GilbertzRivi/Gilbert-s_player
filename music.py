@@ -2,11 +2,12 @@ import discord
 from client import client
 import yt_dlp
 import os
+from discord import Embed
 
 opts = {
     'format': 'bestaudio',
     'noplaylist': True,
-    'outtmpl': 'music/new.mp3',
+    'outtmpl': 'new/%(title)s.mp3',
     'overwrites': True,
     'postprocessors': [
         {
@@ -17,14 +18,21 @@ opts = {
 }
 
 def next_song():
-    os.remove('music/1.mp3')
+    for song in os.listdir('music'):
+        num = int(song.split(';', 1)[0])
+        print(song, num)
+        if num == 1: break
+    os.remove(f'music/{song}')
     if len(os.listdir('music')) == 0:
         return
     for song in sorted(os.listdir('music')):
-        queue_num = int(os.path.splitext(song)[0])
-        os.rename('music/' + song, 'music/' + str(queue_num - 1) + os.path.splitext(song)[1])
+        queue_num = int(os.path.splitext(song)[0].split(';', 1)[0])
+        os.rename('music/' + song, 'music/' + str(queue_num - 1) + ';' + os.path.splitext(song)[0].split(';', 1)[1] + os.path.splitext(song)[1])
     voice = client.voice
-    player = discord.FFmpegPCMAudio('music/1.mp3')
+    for song in os.listdir('music'):
+        num = song.split(';', 1)[0]
+        if num == 1: break
+    player = discord.FFmpegPCMAudio(f'music/{song}')
     voice.play(player, after = lambda e: next_song())
         
 
@@ -47,11 +55,15 @@ async def play(ctx, link):
         except yt_dlp.utils.DownloadError:
             await ctx.respond("Invalid URL")
             return
-        queue_num = len(os.listdir('music'))
-        os.rename('music/new.mp3', f'music/{queue_num}.mp3')
+        queue_num = len(os.listdir('music')) + 1
+        song = os.listdir('new')[0]
+        os.rename(f'new/{song}', f'music/{queue_num} ; {title}.mp3')
         if queue_num == 1:
             await ctx.respond(f'playing {title}')
-            player = discord.FFmpegPCMAudio('music/1.mp3')
+            for song in os.listdir('music'):
+                num = song.split(';', 1)[0]
+                if num == 1: break
+            player = discord.FFmpegPCMAudio(f'music/{song}')
             voice.play(player, after = lambda e: next_song())
         else:
             await ctx.respond(f'Added {title} to queue')
@@ -90,3 +102,31 @@ async def skip(ctx):
     else:
         await ctx.respond('You have to be in the same voice channel to use that command')
 
+@client.slash_command(name='q', description='Shows current queue')
+async def q(ctx, page=1):
+    songs = []
+    for song in os.listdir('music'):
+        num = os.path.splitext(song)[0].split(';', 1)[0]
+        title = os.path.splitext(song)[0].split(';', 1)[1]
+        songs.append({'num': num, 'title': title})
+    songs.sort(key=lambda s: s['num'])
+    songs = songs[10*(page-1):10*page]
+    embed = Embed(title='queue')
+    for song in songs:
+        embed.add_field(name=song['num'], value=song['title'], inline=False)
+    await ctx.respond(embed=embed)
+
+@client.slash_command(name='qc', description='Swaps places of two songs')
+async def qc(ctx, num1, num2):
+    for song in os.listdir('music'):
+        if int(song.split(';', 1)[0]) == int(num1):
+            song1 = song
+            os.rename(f'music/{song}', f'music/swap1.mp3')
+        if int(song.split(';', 1)[0]) == int(num2):
+            song2 = song
+            os.rename(f'music/{song}', f'music/swap2.mp3')
+    swaped1 = song1.split(";", 1)[0] + " ; " + song2.split(';', 1)[1]
+    swaped2 = song2.split(";", 1)[0] + " ; " + song1.split(';', 1)[1]
+    os.rename('music/swap1.mp3', f'music/{swaped1}')
+    os.rename('music/swap2.mp3', f'music/{swaped2}')
+    await ctx.respond('Done')
